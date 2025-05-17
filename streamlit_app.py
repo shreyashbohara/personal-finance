@@ -2,6 +2,75 @@ import streamlit as st
 import pandas as pd
 import math
 from pathlib import Path
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
+
+# --- Connect to Google Sheets ---
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("key.json", scope)
+client = gspread.authorize(creds)
+
+
+sheet = client.open("Money").worksheet("iOS_automation")
+data = sheet.get_all_records()
+
+df = pd.DataFrame(data)
+
+df['date_proc'] = pd.to_datetime(df['Date Combined'], errors='coerce')
+df['date_proc'] = pd.to_datetime(df['Date Combined'], errors='coerce')
+df['amount_proc'] = pd.to_numeric(df['Amount2'], errors='coerce')
+df['category_proc'] = df['Category'].fillna('Uncategorized')
+df['account_proc'] = df['Account'].fillna('Unknown')
+df['desc_proc'] = df['Description'].fillna('No Description')
+
+print(df.info())
+
+# # Check for errors in 'Date' and 'Amount' columns
+# date_errors = df['Date'].isna().sum()
+# amount_errors = df['Amount'].isna().sum()
+
+# # Print the number of errors
+# print(f"Rows with invalid dates: {date_errors}")
+# print(f"Rows with invalid amounts: {amount_errors}")
+
+
+# # --- Data Cleanup ---
+# df['Date'] = pd.to_datetime(df['Date'])
+# df['Amount'] = pd.to_numeric(df['Amount'])
+
+# # Optional: Add 'Exclude' column if not present
+# if 'Exclude' not in df.columns:
+#     df['Exclude'] = False
+
+# # --- Filters ---
+# st.title("📊 My Finance Dashboard")
+
+# # Month filter
+# months = df['Date'].dt.strftime('%Y-%m').unique()
+# selected_month = st.selectbox("Select Month", sorted(months, reverse=True))
+# month_df = df[df['Date'].dt.strftime('%Y-%m') == selected_month]
+
+# # Exclude filter
+# filtered_df = month_df[month_df['Exclude'] != True]
+
+# # --- Summary Metrics ---
+# total_income = filtered_df[filtered_df['Amount'] > 0]['Amount'].sum()
+# total_expenses = filtered_df[filtered_df['Amount'] < 0]['Amount'].sum()
+# net = total_income + total_expenses
+
+# col1, col2, col3 = st.columns(3)
+# col1.metric("💰 Income", f"${total_income:,.2f}")
+# col2.metric("💸 Expenses", f"${abs(total_expenses):,.2f}")
+# col3.metric("🧾 Net", f"${net:,.2f}")
+
+# # --- Transactions Table ---
+# st.subheader("Transactions")
+# st.dataframe(filtered_df[['Date', 'Description', 'Amount', 'Category', 'Account']])
+
+
+
+"""
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
@@ -14,12 +83,12 @@ st.set_page_config(
 
 @st.cache_data
 def get_gdp_data():
-    """Grab GDP data from a CSV file.
+    #Grab GDP data from a CSV file.
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+    # This uses caching to avoid having to read the file every time. If we were
+    # reading from an HTTP endpoint instead of a file, it's a good idea to set
+    # a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
+    
 
     # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
     DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
@@ -151,77 +220,4 @@ for i, country in enumerate(selected_countries):
         )
 
 
-
-import streamlit as st
-import pandas as pd
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
-
-"""
-# --- Connect to Google Sheets ---
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("key.json", scope)
-client = gspread.authorize(creds)
-
-
-sheet = client.open("Money").worksheet("iOS_automation")
-data = sheet.get_all_records()
-
-df = pd.DataFrame(data)
-
-# Only run this once after connecting to Google Sheets
-
-df.to_csv("transactions_backup.csv", index=False)
-"""
-# Use local backup during dev
-df = pd.read_csv("transactions_backup.csv")
-
-df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce')
-df['Category'] = df['Category'].fillna('Uncategorized')
-df['Account'] = df['Account'].fillna('Unknown')
-df['Description'] = df['Description'].fillna('No Description')
-
-# Check for errors in 'Date' and 'Amount' columns
-date_errors = df['Date'].isna().sum()
-amount_errors = df['Amount'].isna().sum()
-
-# Print the number of errors
-print(f"Rows with invalid dates: {date_errors}")
-print(f"Rows with invalid amounts: {amount_errors}")
-
-"""
-# --- Data Cleanup ---
-df['Date'] = pd.to_datetime(df['Date'])
-df['Amount'] = pd.to_numeric(df['Amount'])
-
-# Optional: Add 'Exclude' column if not present
-if 'Exclude' not in df.columns:
-    df['Exclude'] = False
-
-# --- Filters ---
-st.title("📊 My Finance Dashboard")
-
-# Month filter
-months = df['Date'].dt.strftime('%Y-%m').unique()
-selected_month = st.selectbox("Select Month", sorted(months, reverse=True))
-month_df = df[df['Date'].dt.strftime('%Y-%m') == selected_month]
-
-# Exclude filter
-filtered_df = month_df[month_df['Exclude'] != True]
-
-# --- Summary Metrics ---
-total_income = filtered_df[filtered_df['Amount'] > 0]['Amount'].sum()
-total_expenses = filtered_df[filtered_df['Amount'] < 0]['Amount'].sum()
-net = total_income + total_expenses
-
-col1, col2, col3 = st.columns(3)
-col1.metric("💰 Income", f"${total_income:,.2f}")
-col2.metric("💸 Expenses", f"${abs(total_expenses):,.2f}")
-col3.metric("🧾 Net", f"${net:,.2f}")
-
-# --- Transactions Table ---
-st.subheader("Transactions")
-st.dataframe(filtered_df[['Date', 'Description', 'Amount', 'Category', 'Account']])
 """
