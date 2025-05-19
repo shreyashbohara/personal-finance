@@ -5,7 +5,6 @@ import {
   CardContent,
   Typography,
   Grid,
-  Paper,
 } from '@mui/material';
 import {
   BarChart,
